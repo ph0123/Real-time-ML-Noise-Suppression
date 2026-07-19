@@ -46,8 +46,7 @@ reads the state shape from the ONNX file, so one engine runs any of the models.
 ## Results
 
 Six architectures compared on VoiceBank-DEMAND (short CPU demo run — a subset
-with early stopping; see [results.md](results.md) for the full method, all
-per-epoch train/test RMSE + accuracy curves, and the discussion).
+with early stopping).
 
 **Quality (test set, best value per column in bold):**
 

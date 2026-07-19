@@ -15,6 +15,7 @@ data/clean_train/
 data/noisy_train/
 data/clean_test/
 data/noisy_test/
+data/noisy_testset_wav/
 
 # C++ build
 2.model_deployment_with_onnx/build/
