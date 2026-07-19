@@ -1,0 +1,10 @@
+torch>=2.0
+numpy
+soundfile
+onnx
+onnxruntime
+pesq
+pystoi
+tqdm
+matplotlib
+scipy

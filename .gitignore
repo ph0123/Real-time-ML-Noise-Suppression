@@ -1,0 +1,26 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Training artifacts (regeneratable via `python plot_results.py`)
+1.model_selection_and_export_onnx/checkpoint*.pt
+1.model_selection_and_export_onnx/train_log*.csv
+1.model_selection_and_export_onnx/eval_*.txt
+1.model_selection_and_export_onnx/comparison.json
+
+# Dataset (downloaded/resampled locally, not committed)
+data/*.zip
+data/clean_train/
+data/noisy_train/
+data/clean_test/
+data/noisy_test/
+
+# C++ build
+2.model_deployment_with_onnx/build/
+onnxruntime-*/
+
+# Large model binary (export locally)
+models/*.onnx
+
+#demo

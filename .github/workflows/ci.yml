@@ -1,0 +1,65 @@
+name: CI
+
+# Runs the full deployment flow on every push / PR, mirroring the README demo:
+#   build -> test model -> export ONNX -> test ONNX in the C++ engine.
+# Training itself needs the dataset + hours of CPU, so CI exercises the pipeline
+# on an untrained model + a synthetic clip (fast, deterministic).
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    env:
+      ORT_VERSION: "1.18.0"
+    steps:
+      - name: Checkout (with DSP toolkit submodule)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python deps (CPU torch)
+        run: |
+          python -m pip install --upgrade pip
+          pip install --index-url https://download.pytorch.org/whl/cpu torch
+          pip install -r 1.model_selection_and_export_onnx/requirements.txt
+
+      - name: Test models + streaming logic
+        working-directory: 1.model_selection_and_export_onnx
+        run: python selftest.py
+
+      - name: Export streaming ONNX (untrained) + PyTorch/ORT parity
+        working-directory: 1.model_selection_and_export_onnx
+        run: |
+          python -c "import torch; from model import build_model; \
+                     torch.save(build_model('gru').state_dict(), 'checkpoint_gru.pt')"
+          MODEL=gru python export_onnx.py
+
+      - name: Install PortAudio + ONNX Runtime
+        run: |
+          sudo apt-get update && sudo apt-get install -y portaudio19-dev
+          wget -q https://github.com/microsoft/onnxruntime/releases/download/v${ORT_VERSION}/onnxruntime-linux-x64-${ORT_VERSION}.tgz
+          tar xzf onnxruntime-linux-x64-${ORT_VERSION}.tgz -C 2.model_deployment_with_onnx
+
+      - name: Build C++ engine (offline + realtime)
+        run: |
+          cmake -S 2.model_deployment_with_onnx -B 2.model_deployment_with_onnx/build -DORT_DIR="$PWD/2.model_deployment_with_onnx/onnxruntime-linux-x64-${ORT_VERSION}"
+          cmake --build 2.model_deployment_with_onnx/build -j
+
+      - name: Test ONNX in C++ (offline denoise on a synthetic clip)
+        run: |
+          python -c "import numpy as np, soundfile as sf; \
+                     sf.write('sample.wav', (0.1*np.random.randn(16000)).astype('float32'), 16000, subtype='PCM_16')"
+          export LD_LIBRARY_PATH="$PWD/2.model_deployment_with_onnx/onnxruntime-linux-x64-${ORT_VERSION}/lib"
+          ./2.model_deployment_with_onnx/build/offline_denoise models/denoiser.onnx sample.wav out.wav | tee run.log
+          grep -q "Real-time factor" run.log
